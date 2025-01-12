@@ -11,6 +11,8 @@ import (
 	"github.com/mdzio/go-mqtt/service"
 )
 
+const topic = "meters"
+
 type MQTT struct {
 	c  *service.Client
 	id atomic.Uint32
@@ -21,13 +23,10 @@ func NewMQTT(addr string) (*MQTT, error) {
 
 	c := &service.Client{}
 	cm := message.NewConnectMessage()
-	// cm.SetWillQos(1)
 	cm.SetVersion(4)
 	cm.SetCleanSession(true)
 	cm.SetClientID([]byte("rtlamr-mqtt"))
 	cm.SetKeepAlive(10)
-	//cm.SetWillTopic([]byte("meters"))
-	//cm.SetWillMessage([]byte("example"))
 
 	if err := c.Connect(addr, cm); err != nil {
 		return nil, fmt.Errorf("cannot connect to MQTT server, %v", err)
@@ -56,7 +55,7 @@ func (m *MQTT) q(js []byte) error {
 	log.Printf("sending %s to MQTT", js)
 	pm := message.NewPublishMessage()
 	pm.SetPacketID(uint16(m.id.Load()))
-	pm.SetTopic([]byte("meters"))
+	pm.SetTopic([]byte(topic))
 	pm.SetPayload(js)
 
 	if err := m.c.Publish(pm, nil); err != nil {
