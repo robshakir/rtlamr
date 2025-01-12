@@ -193,6 +193,12 @@ func (rcvr *Receiver) Run() {
 		}
 	}()
 
+	mqttC, err := NewMQTT("tcp://localhost:1813")
+	if err != nil {
+		log.Fatalf("cannot create MQTT encoder, %v", err)
+	}
+	defer mqttC.Disconnect()
+
 	go func() {
 		defer rcvr.cancel()
 		defer rcvr.wg.Done()
@@ -227,6 +233,10 @@ func (rcvr *Receiver) Run() {
 					// If the filterchain rejects the message, skip it.
 					if !rcvr.fc.Match(msg) {
 						continue
+					}
+
+					if err := mqttC.Q(msg); err != nil {
+						log.Printf("cannot mqtt encode message, %v", err)
 					}
 
 					// Make a new LogMessage

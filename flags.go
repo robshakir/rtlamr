@@ -139,6 +139,8 @@ func HandleFlags() {
 		encoder = json.NewEncoder(os.Stdout)
 	case "xml":
 		encoder = NewLineEncoder{xml.NewEncoder(os.Stdout)}
+	default:
+		log.Fatalf("Invalid encoder type specified, unknown: %s", *format)
 	}
 }
 
