@@ -44,11 +44,13 @@ func newServer(t *testing.T, addr string) (*mqtt.Server, chan error) {
 	return server, errCh
 }
 
-func TestNewMQTTEncoder(t *testing.T) {
+func TestQ(t *testing.T) {
 	tests := []struct {
-		desc     string
-		inMsgs   []protocol.Message
-		wantMQTT [][]byte
+		desc              string
+		inMsgs            []protocol.Message
+		wantMQTT          [][]byte
+		wantMeters        map[uint32]struct{}
+		wantDiscoveryMsgs [][]byte
 	}{{
 		desc: "SCM",
 		inMsgs: []protocol.Message{
@@ -77,6 +79,38 @@ func TestNewMQTTEncoder(t *testing.T) {
 				return js
 			}(),
 		},
+		wantMeters: map[uint32]struct{}{
+			42: struct{}{},
+		},
+		wantDiscoveryMsgs: [][]byte{
+			func() []byte {
+
+				d := &HomeAssistantDiscovery{
+					Device: &HomeAssistantDevice{
+						ID:   "42",
+						Name: "42 Meter (SCM)",
+					},
+					Origin: &HomeAssistantOrigin{
+						Name:     "rtlamr_mqtt",
+						Software: "v0.01",
+						URL:      "https://github.com/robshakir/rtlamr",
+					},
+					Components: map[string]*HomeAssistantComponent{
+						"meter_0": {
+							Platform:    "sensor",
+							DeviceClass: "energy",
+							Unit:        "kwH",
+							ValTemplate: "{{ value_json.Message.Consumption }}",
+						},
+					},
+				}
+				js, err := json.Marshal(d)
+				if err != nil {
+					t.Fatalf("cannot create test data, %v", err)
+				}
+				return js
+			}(),
+		},
 	}, {
 		desc: "SCM",
 		inMsgs: []protocol.Message{
@@ -101,6 +135,38 @@ func TestNewMQTTEncoder(t *testing.T) {
 				})
 				if err != nil {
 					t.Fatalf("cannot build example, %v", err)
+				}
+				return js
+			}(),
+		},
+		wantMeters: map[uint32]struct{}{
+			42: struct{}{},
+		},
+		wantDiscoveryMsgs: [][]byte{
+			func() []byte {
+
+				d := &HomeAssistantDiscovery{
+					Device: &HomeAssistantDevice{
+						ID:   "42",
+						Name: "42 Meter (SCM)",
+					},
+					Origin: &HomeAssistantOrigin{
+						Name:     "rtlamr_mqtt",
+						Software: "v0.01",
+						URL:      "https://github.com/robshakir/rtlamr",
+					},
+					Components: map[string]*HomeAssistantComponent{
+						"meter_0": {
+							Platform:    "sensor",
+							DeviceClass: "energy",
+							Unit:        "kwH",
+							ValTemplate: "{{ value_json.Message.Consumption }}",
+						},
+					},
+				}
+				js, err := json.Marshal(d)
+				if err != nil {
+					t.Fatalf("cannot create test data, %v", err)
 				}
 				return js
 			}(),
@@ -133,6 +199,38 @@ func TestNewMQTTEncoder(t *testing.T) {
 				})
 				if err != nil {
 					t.Fatalf("cannot build example, %v", err)
+				}
+				return js
+			}(),
+		},
+		wantMeters: map[uint32]struct{}{
+			42: struct{}{},
+		},
+
+		wantDiscoveryMsgs: [][]byte{
+			func() []byte {
+				d := &HomeAssistantDiscovery{
+					Device: &HomeAssistantDevice{
+						ID:   "42",
+						Name: "42 Meter (R900)",
+					},
+					Origin: &HomeAssistantOrigin{
+						Name:     "rtlamr_mqtt",
+						Software: "v0.01",
+						URL:      "https://github.com/robshakir/rtlamr",
+					},
+					Components: map[string]*HomeAssistantComponent{
+						"meter_0": {
+							Platform:    "sensor",
+							DeviceClass: "water",
+							Unit:        "gal",
+							ValTemplate: "{{ value_json.Message.Consumption }}",
+						},
+					},
+				}
+				js, err := json.Marshal(d)
+				if err != nil {
+					t.Fatalf("cannot create test data, %v", err)
 				}
 				return js
 			}(),
@@ -195,6 +293,64 @@ func TestNewMQTTEncoder(t *testing.T) {
 				return js
 			}(),
 		},
+		wantMeters: map[uint32]struct{}{
+			42: struct{}{},
+			43: struct{}{},
+		},
+		wantDiscoveryMsgs: [][]byte{
+			func() []byte {
+				d := &HomeAssistantDiscovery{
+					Device: &HomeAssistantDevice{
+						ID:   "42",
+						Name: "42 Meter (R900)",
+					},
+					Origin: &HomeAssistantOrigin{
+						Name:     "rtlamr_mqtt",
+						Software: "v0.01",
+						URL:      "https://github.com/robshakir/rtlamr",
+					},
+					Components: map[string]*HomeAssistantComponent{
+						"meter_0": {
+							Platform:    "sensor",
+							DeviceClass: "water",
+							Unit:        "gal",
+							ValTemplate: "{{ value_json.Message.Consumption }}",
+						},
+					},
+				}
+				js, err := json.Marshal(d)
+				if err != nil {
+					t.Fatalf("cannot create test data, %v", err)
+				}
+				return js
+			}(),
+			func() []byte {
+				d := &HomeAssistantDiscovery{
+					Device: &HomeAssistantDevice{
+						ID:   "43",
+						Name: "43 Meter (R900)",
+					},
+					Origin: &HomeAssistantOrigin{
+						Name:     "rtlamr_mqtt",
+						Software: "v0.01",
+						URL:      "https://github.com/robshakir/rtlamr",
+					},
+					Components: map[string]*HomeAssistantComponent{
+						"meter_0": {
+							Platform:    "sensor",
+							DeviceClass: "water",
+							Unit:        "gal",
+							ValTemplate: "{{ value_json.Message.Consumption }}",
+						},
+					},
+				}
+				js, err := json.Marshal(d)
+				if err != nil {
+					t.Fatalf("cannot create test data, %v", err)
+				}
+				return js
+			}(),
+		},
 	}}
 
 	for _, tt := range tests {
@@ -218,18 +374,49 @@ func TestNewMQTTEncoder(t *testing.T) {
 					return
 				}
 
-				sm := message.NewSubscribeMessage()
-				sm.AddTopic([]byte("meters"), 0)
-				if err := c.Subscribe(sm, nil, func(msg *message.PublishMessage) error {
-					fmt.Printf("got message: %v\n", msg)
-					gotMsgs = append(gotMsgs, msg.Payload())
-					if len(gotMsgs) >= len(tt.wantMQTT) {
-						doneCh <- struct{}{}
+				for m := range tt.wantMeters {
+					sm := message.NewSubscribeMessage()
+					topic := fmt.Sprintf("meters/%d/state", m)
+					sm.AddTopic([]byte(topic), 0)
+					if err := c.Subscribe(sm, nil, func(msg *message.PublishMessage) error {
+						fmt.Printf("Topic: %s, got message: %v\n", topic, msg)
+						gotMsgs = append(gotMsgs, msg.Payload())
+						if len(gotMsgs) >= len(tt.wantMQTT) {
+							doneCh <- struct{}{}
+						}
+						return nil
+					}); err != nil {
+						recvErrCh <- fmt.Errorf("cannot receive message from MQTT, %v", err)
+						return
 					}
-					return nil
-				}); err != nil {
-					recvErrCh <- fmt.Errorf("cannot receive message from MQTT, %v", err)
+				}
+			}()
+
+			discoveryMessages := [][]byte{}
+			go func() {
+				c := &service.Client{}
+				cm := message.NewConnectMessage()
+				cm.SetVersion(4)
+				cm.SetCleanSession(true)
+				cm.SetClientID([]byte("rtlamr-robjs-tester-discovry"))
+				cm.SetKeepAlive(10)
+				if err := c.Connect("tcp://localhost:1833", cm); err != nil {
+					recvErrCh <- fmt.Errorf("cannot connect to MQTT server, %v", err)
 					return
+				}
+
+				for m := range tt.wantMeters {
+					sm := message.NewSubscribeMessage()
+					topic := fmt.Sprintf("homeassistant/device/%d/config", m)
+					sm.AddTopic([]byte(topic), 0)
+					if err := c.Subscribe(sm, nil, func(msg *message.PublishMessage) error {
+						fmt.Printf("topic: %s, got message: %v\n", topic, msg)
+						discoveryMessages = append(discoveryMessages, msg.Payload())
+						return nil
+					}); err != nil {
+						recvErrCh <- fmt.Errorf("cannot receive message from MQTT, %v", err)
+						return
+					}
 				}
 			}()
 
@@ -257,7 +444,117 @@ func TestNewMQTTEncoder(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(gotMsgs, tt.wantMQTT); diff != "" {
-				t.Fatalf("did not get expected messages, diff(-got,+want):\n%s", diff)
+				t.Errorf("did not get expected messages, diff(-got,+want):\n%s", diff)
+			}
+
+			if diff := cmp.Diff(c.knownMeters, tt.wantMeters); diff != "" {
+				t.Errorf("did not get expected meters, diff(-got,+want):\n%s", diff)
+			}
+
+			if diff := cmp.Diff(discoveryMessages, tt.wantDiscoveryMsgs); diff != "" {
+				t.Errorf("did not get expected discovery errors, diff(-got,+want):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestHADeviceJSON(t *testing.T) {
+	tests := []struct {
+		desc        string
+		in          protocol.Message
+		wantTopic   string
+		wantPayload []byte
+		wantErr     bool
+	}{{
+		desc: "r900 meter",
+		in: r900.R900{
+			ID:          42,
+			Unkn1:       1,
+			NoUse:       1,
+			BackFlow:    2,
+			Consumption: 33,
+			Unkn3:       1,
+			Leak:        1,
+			LeakNow:     1,
+		},
+		wantTopic: "homeassistant/device/42/config",
+		wantPayload: func() []byte {
+			d := &HomeAssistantDiscovery{
+				Device: &HomeAssistantDevice{
+					ID:   "42",
+					Name: "42 Meter (R900)",
+				},
+				Origin: &HomeAssistantOrigin{
+					Name:     "rtlamr_mqtt",
+					Software: "v0.01",
+					URL:      "https://github.com/robshakir/rtlamr",
+				},
+				Components: map[string]*HomeAssistantComponent{
+					"meter_0": {
+						Platform:    "sensor",
+						DeviceClass: "water",
+						Unit:        "gal",
+						ValTemplate: "{{ value_json.Message.Consumption }}",
+					},
+				},
+			}
+			js, err := json.Marshal(d)
+			if err != nil {
+				t.Fatalf("cannot create test data, %v", err)
+			}
+			return js
+		}(),
+	}, {
+		desc: "SCM meter",
+		in: scm.SCM{
+			ID:          42,
+			Type:        1,
+			TamperPhy:   1,
+			TamperEnc:   1,
+			Consumption: 42,
+			ChecksumVal: 1,
+		},
+		wantTopic: "homeassistant/device/42/config",
+		wantPayload: func() []byte {
+			d := &HomeAssistantDiscovery{
+				Device: &HomeAssistantDevice{
+					ID:   "42",
+					Name: "42 Meter (SCM)",
+				},
+				Origin: &HomeAssistantOrigin{
+					Name:     "rtlamr_mqtt",
+					Software: "v0.01",
+					URL:      "https://github.com/robshakir/rtlamr",
+				},
+				Components: map[string]*HomeAssistantComponent{
+					"meter_0": {
+						Platform:    "sensor",
+						DeviceClass: "energy",
+						Unit:        "kwH",
+						ValTemplate: "{{ value_json.Message.Consumption }}",
+					},
+				},
+			}
+			js, err := json.Marshal(d)
+			if err != nil {
+				t.Fatalf("cannot create test data, %v", err)
+			}
+			return js
+		}(),
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			gotTopic, gotPayload, gotErr := haDeviceJSON(tt.in)
+			if (gotErr != nil) != tt.wantErr {
+				t.Fatalf("did not get expected error, got: %v, wantErr? %v", gotErr, tt.wantErr)
+			}
+			if gotTopic != tt.wantTopic {
+				t.Errorf("did not get expected topic, got: %s, want: %s", gotTopic, tt.wantTopic)
+			}
+
+			if diff := cmp.Diff(gotPayload, tt.wantPayload); diff != "" {
+				t.Errorf("did not get expected payload, diff(-got,+want):\n%s", diff)
 			}
 		})
 	}

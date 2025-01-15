@@ -193,11 +193,11 @@ func (rcvr *Receiver) Run() {
 		}
 	}()
 
-	mqttC, err := NewMQTT("tcp://localhost:1813")
+	mqttC, err := NewMQTT("tcp://192.168.20.2:1883")
 	if err != nil {
 		log.Fatalf("cannot create MQTT encoder, %v", err)
 	}
-	defer mqttC.Disconnect()
+	//defer mqttC.Disconnect()
 
 	go func() {
 		defer rcvr.cancel()
