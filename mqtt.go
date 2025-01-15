@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"sync/atomic"
 	"time"
 
 	"github.com/bemasher/rtlamr/protocol"
@@ -13,17 +12,27 @@ import (
 )
 
 const (
+	// mqttClientID is the identifier used for this client when connecting to
+	// the MQTT broker.
 	mqttClientID = "rtlamr-robjs"
-	user         = "homeassistant"
-	pwd          = "SECRET"
+	// user is the username to be used to connect to mqtt. It is usually "homeassistant".
+	user = "homeassistant"
+	// pwd is the plaintext password used to connect to the mqtt broker. It can be found
+	// in plaintext in the yaml homeassistant config.
+	pwd = "SECRET"
 )
 
+// MQTT is a wrapper for a client connecting to HomeAssistant's MQTT broker.
 type MQTT struct {
-	c           mqtt.Client
-	id          atomic.Uint32
-	knownMeters map[uint32]struct{} // Stores a map of known meters to know whether we should create them in HomeAssistant.
+	c mqtt.Client
+	// knownMeters stores the set of meter IDs that the client is monitoring.
+	// This is used to know whether we should create a meter via discovery in
+	// HomeAssistant as the first message is received.
+	knownMeters map[uint32]struct{} //
 }
 
+// NewMQTT returns a new HomeAssistant MQTT client, connected to an external
+// MQTT broker.
 func NewMQTT(addr string) (*MQTT, error) {
 	log.Println("creating MQTT encoder")
 
@@ -43,6 +52,10 @@ func NewMQTT(addr string) (*MQTT, error) {
 	return &MQTT{c: c, knownMeters: map[uint32]struct{}{}}, nil
 }
 
+// Q enqueues a protocol message received from RTLAMR to the relevant MQTT topic.
+// If the meter isn't a known meter, it sends a discovery message to ensure that
+// HomeAssistant knows about the meter and has the relevant state topic as the
+// place to monitor it.
 func (m *MQTT) Q(i protocol.Message) error {
 	log.Printf("received message %v (type %T)", i, i)
 
@@ -58,32 +71,30 @@ func (m *MQTT) Q(i protocol.Message) error {
 		if err != nil {
 			return err
 		}
-		if err := m.q(dT, d); err != nil {
-			return err
-		}
+		// Synchronously send here, since we want HA to discover the meter
+		// before we send our readings.
+		m.q(dT, d)
 		m.knownMeters[i.MeterID()] = struct{}{}
 	}
 
-	if err := m.q(fmt.Sprintf("meters/%d/state", i.MeterID()), js); err != nil {
-		return err
-	}
+	go m.q(fmt.Sprintf("meters/%d/state", i.MeterID()), js)
 
 	return nil
 }
 
-func (m *MQTT) q(topic string, js []byte) error {
-	defer m.id.Add(1)
-
+// q enqueues the JSON message js to the specified MQTT topic. It does
+// not return an error so that it can be fired into a new goroutine.
+func (m *MQTT) q(topic string, js []byte) {
 	log.Printf("sending %s to MQTT", js)
 	m.c.Publish(topic, 0, false, js).Wait()
-
-	return nil
 }
 
+// Disconnect disconnects
 func (m *MQTT) Disconnect() {
 	m.c.Disconnect(100)
 }
 
+// haDeviceJSON produces JSON required to create a new device in HomeAssistant.
 func haDeviceJSON(i protocol.Message) (string, []byte, error) {
 	var devClass, devUnit string
 	switch i.MsgType() {
@@ -91,11 +102,15 @@ func haDeviceJSON(i protocol.Message) (string, []byte, error) {
 		devClass = "water"
 		devUnit = "gal"
 	default:
-		devClass = "energy"
-		devUnit = "kwH"
+		devClass = "volume"
+		devUnit = "ft³"
+
+		// TODO(robjs): Add a second sensor here that is converted into kwH.
 	}
 
 	d := &HomeAssistantDiscovery{
+		StateTopic: fmt.Sprintf("meters/%d/state", i.MeterID()),
+		QOS:        2,
 		Device: &HomeAssistantDevice{
 			ID:   fmt.Sprintf("%d", i.MeterID()),
 			Name: fmt.Sprintf("%d Meter (%s)", i.MeterID(), i.MsgType()),
@@ -110,7 +125,8 @@ func haDeviceJSON(i protocol.Message) (string, []byte, error) {
 				Platform:    "sensor",
 				DeviceClass: devClass,
 				Unit:        devUnit,
-				ValTemplate: "{{ value_json.Message.Consumption }}",
+				ValTemplate: "{{ value_json.Consumption }}",
+				UniqueID:    fmt.Sprintf("meter%d_%s", i.MeterID(), devClass),
 			},
 		},
 	}
@@ -123,6 +139,9 @@ func haDeviceJSON(i protocol.Message) (string, []byte, error) {
 	return fmt.Sprintf("homeassistant/device/%d/config", i.MeterID()), js, nil
 }
 
+// HomeAssistantDiscovery describes the root message of a message that is sent
+// to HomeAssistant to discover a new device. Some documentation is available
+// at https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery
 type HomeAssistantDiscovery struct {
 	Device     *HomeAssistantDevice               `json:"dev,omitempty"`
 	Origin     *HomeAssistantOrigin               `json:"o,omitempty"`
@@ -131,17 +150,20 @@ type HomeAssistantDiscovery struct {
 	QOS        int                                `json:"qos,omitempty"`
 }
 
+// HomeAssistantDevice describes a device to HomeAssistant.
 type HomeAssistantDevice struct {
 	ID   string `json:"ids,omitempty"`
 	Name string `json:"name,omitempty"`
 }
 
+// HomeAssistantOrigin describes the origin of data to HomeAssistant.
 type HomeAssistantOrigin struct {
 	Name     string `json:"name,omitempty"`
 	Software string `json:"sw,omitempty"`
 	URL      string `json:"url,omitempty"`
 }
 
+// HomeAssistantComponent describes a component within the HomeAssistant device.
 type HomeAssistantComponent struct {
 	Platform    string `json:"p,omitempty"`
 	DeviceClass string `json:"device_class,omitempty"`

@@ -10,6 +10,7 @@ import (
 	"github.com/bemasher/rtlamr/r900"
 	"github.com/bemasher/rtlamr/scm"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/mdzio/go-mqtt/message"
 	"github.com/mdzio/go-mqtt/service"
 
@@ -80,12 +81,14 @@ func TestQ(t *testing.T) {
 			}(),
 		},
 		wantMeters: map[uint32]struct{}{
-			42: struct{}{},
+			42: {},
 		},
 		wantDiscoveryMsgs: [][]byte{
 			func() []byte {
 
 				d := &HomeAssistantDiscovery{
+					StateTopic: "meters/42/state",
+					QOS:        2,
 					Device: &HomeAssistantDevice{
 						ID:   "42",
 						Name: "42 Meter (SCM)",
@@ -98,9 +101,10 @@ func TestQ(t *testing.T) {
 					Components: map[string]*HomeAssistantComponent{
 						"meter_0": {
 							Platform:    "sensor",
-							DeviceClass: "energy",
-							Unit:        "kwH",
-							ValTemplate: "{{ value_json.Message.Consumption }}",
+							DeviceClass: "volume",
+							Unit:        "ft³",
+							ValTemplate: "{{ value_json.Consumption }}",
+							UniqueID:    "meter42_volume",
 						},
 					},
 				}
@@ -140,12 +144,14 @@ func TestQ(t *testing.T) {
 			}(),
 		},
 		wantMeters: map[uint32]struct{}{
-			42: struct{}{},
+			42: {},
 		},
 		wantDiscoveryMsgs: [][]byte{
 			func() []byte {
 
 				d := &HomeAssistantDiscovery{
+					StateTopic: "meters/42/state",
+					QOS:        2,
 					Device: &HomeAssistantDevice{
 						ID:   "42",
 						Name: "42 Meter (SCM)",
@@ -158,9 +164,10 @@ func TestQ(t *testing.T) {
 					Components: map[string]*HomeAssistantComponent{
 						"meter_0": {
 							Platform:    "sensor",
-							DeviceClass: "energy",
-							Unit:        "kwH",
-							ValTemplate: "{{ value_json.Message.Consumption }}",
+							DeviceClass: "volume",
+							Unit:        "ft³",
+							ValTemplate: "{{ value_json.Consumption }}",
+							UniqueID:    "meter42_volume",
 						},
 					},
 				}
@@ -204,12 +211,14 @@ func TestQ(t *testing.T) {
 			}(),
 		},
 		wantMeters: map[uint32]struct{}{
-			42: struct{}{},
+			42: {},
 		},
 
 		wantDiscoveryMsgs: [][]byte{
 			func() []byte {
 				d := &HomeAssistantDiscovery{
+					StateTopic: "meters/42/state",
+					QOS:        2,
 					Device: &HomeAssistantDevice{
 						ID:   "42",
 						Name: "42 Meter (R900)",
@@ -224,7 +233,8 @@ func TestQ(t *testing.T) {
 							Platform:    "sensor",
 							DeviceClass: "water",
 							Unit:        "gal",
-							ValTemplate: "{{ value_json.Message.Consumption }}",
+							ValTemplate: "{{ value_json.Consumption }}",
+							UniqueID:    "meter42_water",
 						},
 					},
 				}
@@ -294,12 +304,14 @@ func TestQ(t *testing.T) {
 			}(),
 		},
 		wantMeters: map[uint32]struct{}{
-			42: struct{}{},
-			43: struct{}{},
+			42: {},
+			43: {},
 		},
 		wantDiscoveryMsgs: [][]byte{
 			func() []byte {
 				d := &HomeAssistantDiscovery{
+					StateTopic: "meters/42/state",
+					QOS:        2,
 					Device: &HomeAssistantDevice{
 						ID:   "42",
 						Name: "42 Meter (R900)",
@@ -314,7 +326,8 @@ func TestQ(t *testing.T) {
 							Platform:    "sensor",
 							DeviceClass: "water",
 							Unit:        "gal",
-							ValTemplate: "{{ value_json.Message.Consumption }}",
+							ValTemplate: "{{ value_json.Consumption }}",
+							UniqueID:    "meter42_water",
 						},
 					},
 				}
@@ -326,6 +339,8 @@ func TestQ(t *testing.T) {
 			}(),
 			func() []byte {
 				d := &HomeAssistantDiscovery{
+					StateTopic: "meters/43/state",
+					QOS:        2,
 					Device: &HomeAssistantDevice{
 						ID:   "43",
 						Name: "43 Meter (R900)",
@@ -340,7 +355,8 @@ func TestQ(t *testing.T) {
 							Platform:    "sensor",
 							DeviceClass: "water",
 							Unit:        "gal",
-							ValTemplate: "{{ value_json.Message.Consumption }}",
+							ValTemplate: "{{ value_json.Consumption }}",
+							UniqueID:    "meter43_water",
 						},
 					},
 				}
@@ -443,7 +459,7 @@ func TestQ(t *testing.T) {
 			case <-doneCh:
 			}
 
-			if diff := cmp.Diff(gotMsgs, tt.wantMQTT); diff != "" {
+			if diff := cmp.Diff(gotMsgs, tt.wantMQTT, cmpopts.SortSlices(func(a, b []byte) bool { return string(a) < string(b) })); diff != "" {
 				t.Errorf("did not get expected messages, diff(-got,+want):\n%s", diff)
 			}
 
@@ -480,6 +496,8 @@ func TestHADeviceJSON(t *testing.T) {
 		wantTopic: "homeassistant/device/42/config",
 		wantPayload: func() []byte {
 			d := &HomeAssistantDiscovery{
+				StateTopic: "meters/42/state",
+				QOS:        2,
 				Device: &HomeAssistantDevice{
 					ID:   "42",
 					Name: "42 Meter (R900)",
@@ -494,7 +512,8 @@ func TestHADeviceJSON(t *testing.T) {
 						Platform:    "sensor",
 						DeviceClass: "water",
 						Unit:        "gal",
-						ValTemplate: "{{ value_json.Message.Consumption }}",
+						ValTemplate: "{{ value_json.Consumption }}",
+						UniqueID:    "meter42_water",
 					},
 				},
 			}
@@ -517,6 +536,8 @@ func TestHADeviceJSON(t *testing.T) {
 		wantTopic: "homeassistant/device/42/config",
 		wantPayload: func() []byte {
 			d := &HomeAssistantDiscovery{
+				StateTopic: "meters/42/state",
+				QOS:        2,
 				Device: &HomeAssistantDevice{
 					ID:   "42",
 					Name: "42 Meter (SCM)",
@@ -529,9 +550,10 @@ func TestHADeviceJSON(t *testing.T) {
 				Components: map[string]*HomeAssistantComponent{
 					"meter_0": {
 						Platform:    "sensor",
-						DeviceClass: "energy",
-						Unit:        "kwH",
-						ValTemplate: "{{ value_json.Message.Consumption }}",
+						DeviceClass: "volume",
+						Unit:        "ft³",
+						ValTemplate: "{{ value_json.Consumption }}",
+						UniqueID:    "meter42_volume",
 					},
 				},
 			}

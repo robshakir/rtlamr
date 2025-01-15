@@ -193,11 +193,15 @@ func (rcvr *Receiver) Run() {
 		}
 	}()
 
-	mqttC, err := NewMQTT("tcp://192.168.20.2:1883")
-	if err != nil {
-		log.Fatalf("cannot create MQTT encoder, %v", err)
+	var mqttC *MQTT
+	if *useMQTT {
+		var err error
+		// TODO(robjs): Make this be an argument.
+		mqttC, err = NewMQTT("tcp://192.168.20.2:1883")
+		if err != nil {
+			log.Fatalf("cannot create MQTT encoder, %v", err)
+		}
 	}
-	//defer mqttC.Disconnect()
 
 	go func() {
 		defer rcvr.cancel()
@@ -235,8 +239,10 @@ func (rcvr *Receiver) Run() {
 						continue
 					}
 
-					if err := mqttC.Q(msg); err != nil {
-						log.Printf("cannot mqtt encode message, %v", err)
+					if *useMQTT {
+						if err := mqttC.Q(msg); err != nil {
+							log.Printf("cannot mqtt encode message, %v", err)
+						}
 					}
 
 					// Make a new LogMessage

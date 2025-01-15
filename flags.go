@@ -52,6 +52,8 @@ var single = flag.Bool("single", false, "one shot execution, if used with -filte
 
 var version = flag.Bool("version", false, "display build date and commit hash")
 
+var useMQTT = flag.Bool("use_mqtt", false, "whether to use MQTT connections")
+
 func RegisterFlags() {
 	msgType = StringMap{"scm": true}
 	flag.Var(msgType, "msgtype", "comma-separated list of message types to receive: all, scm, scm+, idm, netidm, r900 and r900bcd")
