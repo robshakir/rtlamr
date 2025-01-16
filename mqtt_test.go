@@ -50,7 +50,7 @@ func TestQ(t *testing.T) {
 		desc              string
 		inMsgs            []protocol.Message
 		wantMQTT          [][]byte
-		wantMeters        map[uint32]struct{}
+		wantMeters        map[uint32][]*spec
 		wantDiscoveryMsgs [][]byte
 	}{{
 		desc: "SCM",
@@ -60,28 +60,34 @@ func TestQ(t *testing.T) {
 				Type:        1,
 				TamperPhy:   1,
 				TamperEnc:   1,
-				Consumption: 42,
+				Consumption: 1,
 				ChecksumVal: 1,
 			},
 		},
 		wantMQTT: [][]byte{
 			func() []byte {
-				js, err := json.Marshal(scm.SCM{
-					ID:          42,
-					Type:        1,
-					TamperPhy:   1,
-					TamperEnc:   1,
-					Consumption: 42,
-					ChecksumVal: 1,
-				})
+				js, err := json.MarshalIndent(
+					map[string]any{
+						"ChecksumVal":    1,
+						"ID":             42,
+						"Type":           1,
+						"TamperEnc":      1,
+						"TamperPhy":      1,
+						"Consumption":    1,
+						"ConsumptionKWH": 28.423567201362495,
+					}, "", "  ",
+				)
 				if err != nil {
 					t.Fatalf("cannot build example, %v", err)
 				}
 				return js
 			}(),
 		},
-		wantMeters: map[uint32]struct{}{
-			42: {},
+		wantMeters: map[uint32][]*spec{
+			42: {{
+				OriginJSONKey: "Consumption",
+				NewJSONKey:    "ConsumptionKWH",
+			}},
 		},
 		wantDiscoveryMsgs: [][]byte{
 			func() []byte {
@@ -101,14 +107,21 @@ func TestQ(t *testing.T) {
 					Components: map[string]*HomeAssistantComponent{
 						"meter_0": {
 							Platform:    "sensor",
-							DeviceClass: "volume",
+							DeviceClass: "gas",
 							Unit:        "ft³",
 							ValTemplate: "{{ value_json.Consumption }}",
-							UniqueID:    "meter42_volume",
+							UniqueID:    "meter42_gas",
+						},
+						"meter_kwh": {
+							Platform:    "sensor",
+							DeviceClass: "gas",
+							Unit:        "kwH",
+							ValTemplate: "{{ value_json.ConsumptionKWH }}",
+							UniqueID:    "meter42_kwh",
 						},
 					},
 				}
-				js, err := json.Marshal(d)
+				js, err := json.MarshalIndent(d, "", "  ")
 				if err != nil {
 					t.Fatalf("cannot create test data, %v", err)
 				}
@@ -116,7 +129,7 @@ func TestQ(t *testing.T) {
 			}(),
 		},
 	}, {
-		desc: "SCM",
+		desc: "AltSCM",
 		inMsgs: []protocol.Message{
 			scm.SCM{
 				ID:          42,
@@ -129,22 +142,28 @@ func TestQ(t *testing.T) {
 		},
 		wantMQTT: [][]byte{
 			func() []byte {
-				js, err := json.Marshal(scm.SCM{
-					ID:          42,
-					Type:        1,
-					TamperPhy:   1,
-					TamperEnc:   1,
-					Consumption: 42,
-					ChecksumVal: 1,
-				})
+				js, err := json.MarshalIndent(
+					map[string]any{
+						"ChecksumVal":    1,
+						"ID":             42,
+						"Type":           1,
+						"TamperEnc":      1,
+						"TamperPhy":      1,
+						"Consumption":    42,
+						"ConsumptionKWH": 42.0 * 28.423567201362495,
+					}, "", "  ",
+				)
 				if err != nil {
 					t.Fatalf("cannot build example, %v", err)
 				}
 				return js
 			}(),
 		},
-		wantMeters: map[uint32]struct{}{
-			42: {},
+		wantMeters: map[uint32][]*spec{
+			42: {{
+				OriginJSONKey: "Consumption",
+				NewJSONKey:    "ConsumptionKWH",
+			}},
 		},
 		wantDiscoveryMsgs: [][]byte{
 			func() []byte {
@@ -164,14 +183,21 @@ func TestQ(t *testing.T) {
 					Components: map[string]*HomeAssistantComponent{
 						"meter_0": {
 							Platform:    "sensor",
-							DeviceClass: "volume",
+							DeviceClass: "gas",
 							Unit:        "ft³",
 							ValTemplate: "{{ value_json.Consumption }}",
-							UniqueID:    "meter42_volume",
+							UniqueID:    "meter42_gas",
+						},
+						"meter_kwh": {
+							Platform:    "sensor",
+							DeviceClass: "gas",
+							Unit:        "kwH",
+							ValTemplate: "{{ value_json.ConsumptionKWH }}",
+							UniqueID:    "meter42_kwh",
 						},
 					},
 				}
-				js, err := json.Marshal(d)
+				js, err := json.MarshalIndent(d, "", "  ")
 				if err != nil {
 					t.Fatalf("cannot create test data, %v", err)
 				}
@@ -194,24 +220,28 @@ func TestQ(t *testing.T) {
 		},
 		wantMQTT: [][]byte{
 			func() []byte {
-				js, err := json.Marshal(r900.R900{
-					ID:          42,
-					Unkn1:       1,
-					NoUse:       1,
-					BackFlow:    2,
-					Consumption: 33,
-					Unkn3:       1,
-					Leak:        1,
-					LeakNow:     1,
-				})
+				js, err := json.MarshalIndent(
+					map[string]any{
+						"ID":          42,
+						"Unkn1":       1,
+						"NoUse":       1,
+						"BackFlow":    2,
+						"Consumption": 3.3,
+						"Unkn3":       1,
+						"Leak":        1,
+						"LeakNow":     1,
+					}, "", "  ")
 				if err != nil {
 					t.Fatalf("cannot build example, %v", err)
 				}
 				return js
 			}(),
 		},
-		wantMeters: map[uint32]struct{}{
-			42: {},
+		wantMeters: map[uint32][]*spec{
+			42: {{
+				NewJSONKey:    "Consumption",
+				OriginJSONKey: "Consumption",
+			}},
 		},
 
 		wantDiscoveryMsgs: [][]byte{
@@ -236,9 +266,21 @@ func TestQ(t *testing.T) {
 							ValTemplate: "{{ value_json.Consumption }}",
 							UniqueID:    "meter42_water",
 						},
+						"meter42_leak_count": {
+							Platform:    "sensor",
+							DeviceClass: "water",
+							ValTemplate: "{{ value_json.Leak }}",
+							UniqueID:    "meter42_leak_count",
+						},
+						"meter42_leak_status": {
+							Platform:    "binary_sensor",
+							DeviceClass: "water",
+							ValTemplate: "{{ value_json.LeakNow }}",
+							UniqueID:    "meter42_leaknow",
+						},
 					},
 				}
-				js, err := json.Marshal(d)
+				js, err := json.MarshalIndent(d, "", "  ")
 				if err != nil {
 					t.Fatalf("cannot create test data, %v", err)
 				}
@@ -271,41 +313,49 @@ func TestQ(t *testing.T) {
 		},
 		wantMQTT: [][]byte{
 			func() []byte {
-				js, err := json.Marshal(r900.R900{
-					ID:          42,
-					Unkn1:       1,
-					NoUse:       1,
-					BackFlow:    2,
-					Consumption: 33,
-					Unkn3:       1,
-					Leak:        1,
-					LeakNow:     1,
-				})
+				js, err := json.MarshalIndent(
+					map[string]any{
+						"ID":          42,
+						"Unkn1":       1,
+						"NoUse":       1,
+						"BackFlow":    2,
+						"Consumption": 3.3,
+						"Unkn3":       1,
+						"Leak":        1,
+						"LeakNow":     1,
+					}, "", "  ")
 				if err != nil {
 					t.Fatalf("cannot build example, %v", err)
 				}
 				return js
 			}(),
 			func() []byte {
-				js, err := json.Marshal(r900.R900{
-					ID:          43,
-					Unkn1:       1,
-					NoUse:       1,
-					BackFlow:    2,
-					Consumption: 33,
-					Unkn3:       1,
-					Leak:        1,
-					LeakNow:     1,
-				})
+				js, err := json.MarshalIndent(
+					map[string]any{
+						"ID":          43,
+						"Unkn1":       1,
+						"NoUse":       1,
+						"BackFlow":    2,
+						"Consumption": 3.3,
+						"Unkn3":       1,
+						"Leak":        1,
+						"LeakNow":     1,
+					}, "", "  ")
 				if err != nil {
 					t.Fatalf("cannot build example, %v", err)
 				}
 				return js
 			}(),
 		},
-		wantMeters: map[uint32]struct{}{
-			42: {},
-			43: {},
+		wantMeters: map[uint32][]*spec{
+			42: {{
+				OriginJSONKey: "Consumption",
+				NewJSONKey:    "Consumption",
+			}},
+			43: {{
+				OriginJSONKey: "Consumption",
+				NewJSONKey:    "Consumption",
+			}},
 		},
 		wantDiscoveryMsgs: [][]byte{
 			func() []byte {
@@ -329,9 +379,21 @@ func TestQ(t *testing.T) {
 							ValTemplate: "{{ value_json.Consumption }}",
 							UniqueID:    "meter42_water",
 						},
+						"meter42_leak_count": {
+							Platform:    "sensor",
+							DeviceClass: "water",
+							ValTemplate: "{{ value_json.Leak }}",
+							UniqueID:    "meter42_leak_count",
+						},
+						"meter42_leak_status": {
+							Platform:    "binary_sensor",
+							DeviceClass: "water",
+							ValTemplate: "{{ value_json.LeakNow }}",
+							UniqueID:    "meter42_leaknow",
+						},
 					},
 				}
-				js, err := json.Marshal(d)
+				js, err := json.MarshalIndent(d, "", "  ")
 				if err != nil {
 					t.Fatalf("cannot create test data, %v", err)
 				}
@@ -358,9 +420,21 @@ func TestQ(t *testing.T) {
 							ValTemplate: "{{ value_json.Consumption }}",
 							UniqueID:    "meter43_water",
 						},
+						"meter43_leak_count": {
+							Platform:    "sensor",
+							DeviceClass: "water",
+							ValTemplate: "{{ value_json.Leak }}",
+							UniqueID:    "meter43_leak_count",
+						},
+						"meter43_leak_status": {
+							Platform:    "binary_sensor",
+							DeviceClass: "water",
+							ValTemplate: "{{ value_json.LeakNow }}",
+							UniqueID:    "meter43_leaknow",
+						},
 					},
 				}
-				js, err := json.Marshal(d)
+				js, err := json.MarshalIndent(d, "", "  ")
 				if err != nil {
 					t.Fatalf("cannot create test data, %v", err)
 				}
@@ -368,6 +442,16 @@ func TestQ(t *testing.T) {
 			}(),
 		},
 	}}
+
+	chkJSON := cmp.FilterValues(func(a, b []byte) bool {
+		return json.Valid(a) && json.Valid(b)
+	}, cmp.Transformer("ParseJSON", func(a []byte) interface{} {
+		var out any
+		if err := json.Unmarshal(a, &out); err != nil {
+			t.Fatalf("cannot parse JSON (unpossible!): %v", err)
+		}
+		return out
+	}))
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -459,11 +543,11 @@ func TestQ(t *testing.T) {
 			case <-doneCh:
 			}
 
-			if diff := cmp.Diff(gotMsgs, tt.wantMQTT, cmpopts.SortSlices(func(a, b []byte) bool { return string(a) < string(b) })); diff != "" {
+			if diff := cmp.Diff(gotMsgs, tt.wantMQTT, cmpopts.SortSlices(func(a, b []byte) bool { return string(a) < string(b) }), chkJSON); diff != "" {
 				t.Errorf("did not get expected messages, diff(-got,+want):\n%s", diff)
 			}
 
-			if diff := cmp.Diff(c.knownMeters, tt.wantMeters); diff != "" {
+			if diff := cmp.Diff(c.knownMeters, tt.wantMeters, cmpopts.IgnoreFields(spec{}, "TransformFn")); diff != "" {
 				t.Errorf("did not get expected meters, diff(-got,+want):\n%s", diff)
 			}
 
@@ -480,6 +564,7 @@ func TestHADeviceJSON(t *testing.T) {
 		in          protocol.Message
 		wantTopic   string
 		wantPayload []byte
+		wantSpec    []*spec
 		wantErr     bool
 	}{{
 		desc: "r900 meter",
@@ -515,14 +600,30 @@ func TestHADeviceJSON(t *testing.T) {
 						ValTemplate: "{{ value_json.Consumption }}",
 						UniqueID:    "meter42_water",
 					},
+					"meter42_leak_count": {
+						Platform:    "sensor",
+						DeviceClass: "water",
+						ValTemplate: "{{ value_json.Leak }}",
+						UniqueID:    "meter42_leak_count",
+					},
+					"meter42_leak_status": {
+						Platform:    "binary_sensor",
+						DeviceClass: "water",
+						ValTemplate: "{{ value_json.LeakNow }}",
+						UniqueID:    "meter42_leaknow",
+					},
 				},
 			}
-			js, err := json.Marshal(d)
+			js, err := json.MarshalIndent(d, "", "  ")
 			if err != nil {
 				t.Fatalf("cannot create test data, %v", err)
 			}
 			return js
 		}(),
+		wantSpec: []*spec{{
+			OriginJSONKey: "Consumption",
+			NewJSONKey:    "Consumption",
+		}},
 	}, {
 		desc: "SCM meter",
 		in: scm.SCM{
@@ -550,24 +651,35 @@ func TestHADeviceJSON(t *testing.T) {
 				Components: map[string]*HomeAssistantComponent{
 					"meter_0": {
 						Platform:    "sensor",
-						DeviceClass: "volume",
+						DeviceClass: "gas",
 						Unit:        "ft³",
 						ValTemplate: "{{ value_json.Consumption }}",
-						UniqueID:    "meter42_volume",
+						UniqueID:    "meter42_gas",
+					},
+					"meter_kwh": {
+						Platform:    "sensor",
+						DeviceClass: "gas",
+						Unit:        "kwH",
+						ValTemplate: "{{ value_json.ConsumptionKWH }}",
+						UniqueID:    "meter42_kwh",
 					},
 				},
 			}
-			js, err := json.Marshal(d)
+			js, err := json.MarshalIndent(d, "", "  ")
 			if err != nil {
 				t.Fatalf("cannot create test data, %v", err)
 			}
 			return js
 		}(),
+		wantSpec: []*spec{{
+			OriginJSONKey: "Consumption",
+			NewJSONKey:    "ConsumptionKWH",
+		}},
 	}}
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			gotTopic, gotPayload, gotErr := haDeviceJSON(tt.in)
+			gotTopic, gotPayload, gotSpec, gotErr := haDeviceJSON(tt.in)
 			if (gotErr != nil) != tt.wantErr {
 				t.Fatalf("did not get expected error, got: %v, wantErr? %v", gotErr, tt.wantErr)
 			}
@@ -578,6 +690,13 @@ func TestHADeviceJSON(t *testing.T) {
 			if diff := cmp.Diff(gotPayload, tt.wantPayload); diff != "" {
 				t.Errorf("did not get expected payload, diff(-got,+want):\n%s", diff)
 			}
+
+			if diff := cmp.Diff(gotSpec, tt.wantSpec, cmpopts.SortSlices(func(i, j *spec) bool {
+				return i.NewJSONKey < j.NewJSONKey
+			}), cmpopts.IgnoreFields(spec{}, "TransformFn")); diff != "" {
+				t.Errorf("did not get expected transformer spec, diff(-got,+want):\n%s", diff)
+			}
+
 		})
 	}
 }
