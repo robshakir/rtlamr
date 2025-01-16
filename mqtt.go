@@ -167,8 +167,8 @@ func haDeviceJSON(i protocol.Message) (string, []byte, []*spec, error) {
 		kwhID := fmt.Sprintf("meter%d_kwh", i.MeterID())
 		extraCmps["meter_kwh"] = &HomeAssistantComponent{
 			Platform:    "sensor",
-			DeviceClass: "gas",
-			Unit:        "kwH",
+			DeviceClass: "energy",
+			Unit:        "kWh",
 			ValTemplate: "{{ value_json.ConsumptionKWH }}",
 			UniqueID:    kwhID,
 		}

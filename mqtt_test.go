@@ -114,8 +114,8 @@ func TestQ(t *testing.T) {
 						},
 						"meter_kwh": {
 							Platform:    "sensor",
-							DeviceClass: "gas",
-							Unit:        "kwH",
+							DeviceClass: "energy",
+							Unit:        "kWh",
 							ValTemplate: "{{ value_json.ConsumptionKWH }}",
 							UniqueID:    "meter42_kwh",
 						},
@@ -190,8 +190,8 @@ func TestQ(t *testing.T) {
 						},
 						"meter_kwh": {
 							Platform:    "sensor",
-							DeviceClass: "gas",
-							Unit:        "kwH",
+							DeviceClass: "energy",
+							Unit:        "kWh",
 							ValTemplate: "{{ value_json.ConsumptionKWH }}",
 							UniqueID:    "meter42_kwh",
 						},
@@ -658,8 +658,8 @@ func TestHADeviceJSON(t *testing.T) {
 					},
 					"meter_kwh": {
 						Platform:    "sensor",
-						DeviceClass: "gas",
-						Unit:        "kwH",
+						DeviceClass: "energy",
+						Unit:        "kWh",
 						ValTemplate: "{{ value_json.ConsumptionKWH }}",
 						UniqueID:    "meter42_kwh",
 					},
