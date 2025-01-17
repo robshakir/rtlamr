@@ -74,7 +74,7 @@ func TestQ(t *testing.T) {
 						"TamperEnc":      1,
 						"TamperPhy":      1,
 						"Consumption":    1,
-						"ConsumptionKWH": 28.423567201362495,
+						"ConsumptionKWH": 0.2842356721,
 					}, "", "  ",
 				)
 				if err != nil {
@@ -85,6 +85,9 @@ func TestQ(t *testing.T) {
 		},
 		wantMeters: map[uint32][]*spec{
 			42: {{
+				OriginJSONKey: "Consumption",
+				NewJSONKey:    "Consumption",
+			}, {
 				OriginJSONKey: "Consumption",
 				NewJSONKey:    "ConsumptionKWH",
 			}},
@@ -114,8 +117,8 @@ func TestQ(t *testing.T) {
 						},
 						"meter_kwh": {
 							Platform:    "sensor",
-							DeviceClass: "gas",
-							Unit:        "kwH",
+							DeviceClass: "energy",
+							Unit:        "kWh",
 							ValTemplate: "{{ value_json.ConsumptionKWH }}",
 							UniqueID:    "meter42_kwh",
 						},
@@ -150,7 +153,7 @@ func TestQ(t *testing.T) {
 						"TamperEnc":      1,
 						"TamperPhy":      1,
 						"Consumption":    42,
-						"ConsumptionKWH": 42.0 * 28.423567201362495,
+						"ConsumptionKWH": 11.9378982282,
 					}, "", "  ",
 				)
 				if err != nil {
@@ -161,6 +164,10 @@ func TestQ(t *testing.T) {
 		},
 		wantMeters: map[uint32][]*spec{
 			42: {{
+
+				OriginJSONKey: "Consumption",
+				NewJSONKey:    "Consumption",
+			}, {
 				OriginJSONKey: "Consumption",
 				NewJSONKey:    "ConsumptionKWH",
 			}},
@@ -190,8 +197,8 @@ func TestQ(t *testing.T) {
 						},
 						"meter_kwh": {
 							Platform:    "sensor",
-							DeviceClass: "gas",
-							Unit:        "kwH",
+							DeviceClass: "energy",
+							Unit:        "kWh",
 							ValTemplate: "{{ value_json.ConsumptionKWH }}",
 							UniqueID:    "meter42_kwh",
 						},
@@ -268,13 +275,11 @@ func TestQ(t *testing.T) {
 						},
 						"meter42_leak_count": {
 							Platform:    "sensor",
-							DeviceClass: "water",
 							ValTemplate: "{{ value_json.Leak }}",
 							UniqueID:    "meter42_leak_count",
 						},
 						"meter42_leak_status": {
 							Platform:    "binary_sensor",
-							DeviceClass: "water",
 							ValTemplate: "{{ value_json.LeakNow }}",
 							UniqueID:    "meter42_leaknow",
 						},
@@ -381,13 +386,11 @@ func TestQ(t *testing.T) {
 						},
 						"meter42_leak_count": {
 							Platform:    "sensor",
-							DeviceClass: "water",
 							ValTemplate: "{{ value_json.Leak }}",
 							UniqueID:    "meter42_leak_count",
 						},
 						"meter42_leak_status": {
 							Platform:    "binary_sensor",
-							DeviceClass: "water",
 							ValTemplate: "{{ value_json.LeakNow }}",
 							UniqueID:    "meter42_leaknow",
 						},
@@ -422,13 +425,11 @@ func TestQ(t *testing.T) {
 						},
 						"meter43_leak_count": {
 							Platform:    "sensor",
-							DeviceClass: "water",
 							ValTemplate: "{{ value_json.Leak }}",
 							UniqueID:    "meter43_leak_count",
 						},
 						"meter43_leak_status": {
 							Platform:    "binary_sensor",
-							DeviceClass: "water",
 							ValTemplate: "{{ value_json.LeakNow }}",
 							UniqueID:    "meter43_leaknow",
 						},
@@ -559,12 +560,76 @@ func TestQ(t *testing.T) {
 }
 
 func TestHADeviceJSON(t *testing.T) {
+	r900Payload := &HomeAssistantDiscovery{
+		StateTopic: "meters/42/state",
+		QOS:        2,
+		Device: &HomeAssistantDevice{
+			ID:   "42",
+			Name: "42 Meter (R900)",
+		},
+		Origin: &HomeAssistantOrigin{
+			Name:     "rtlamr_mqtt",
+			Software: "v0.01",
+			URL:      "https://github.com/robshakir/rtlamr",
+		},
+		Components: map[string]*HomeAssistantComponent{
+			"meter_0": {
+				Platform:    "sensor",
+				DeviceClass: "water",
+				Unit:        "gal",
+				ValTemplate: "{{ value_json.Consumption }}",
+				UniqueID:    "meter42_water",
+			},
+			"meter42_leak_count": {
+				Platform:    "sensor",
+				ValTemplate: "{{ value_json.Leak }}",
+				UniqueID:    "meter42_leak_count",
+			},
+			"meter42_leak_status": {
+				Platform:    "binary_sensor",
+				ValTemplate: "{{ value_json.LeakNow }}",
+				UniqueID:    "meter42_leaknow",
+			},
+		},
+	}
+
+	scmPayload := &HomeAssistantDiscovery{
+		StateTopic: "meters/42/state",
+		QOS:        2,
+		Device: &HomeAssistantDevice{
+			ID:   "42",
+			Name: "42 Meter (SCM)",
+		},
+		Origin: &HomeAssistantOrigin{
+			Name:     "rtlamr_mqtt",
+			Software: "v0.01",
+			URL:      "https://github.com/robshakir/rtlamr",
+		},
+		Components: map[string]*HomeAssistantComponent{
+			"meter_0": {
+				Platform:    "sensor",
+				DeviceClass: "gas",
+				Unit:        "ft³",
+				ValTemplate: "{{ value_json.Consumption }}",
+				UniqueID:    "meter42_gas",
+			},
+			"meter_kwh": {
+				Platform:    "sensor",
+				DeviceClass: "energy",
+				Unit:        "kWh",
+				ValTemplate: "{{ value_json.ConsumptionKWH }}",
+				UniqueID:    "meter42_kwh",
+			},
+		},
+	}
+
 	tests := []struct {
 		desc        string
 		in          protocol.Message
 		wantTopic   string
 		wantPayload []byte
 		wantSpec    []*spec
+		wantReconn  *reconnMsg
 		wantErr     bool
 	}{{
 		desc: "r900 meter",
@@ -580,41 +645,7 @@ func TestHADeviceJSON(t *testing.T) {
 		},
 		wantTopic: "homeassistant/device/42/config",
 		wantPayload: func() []byte {
-			d := &HomeAssistantDiscovery{
-				StateTopic: "meters/42/state",
-				QOS:        2,
-				Device: &HomeAssistantDevice{
-					ID:   "42",
-					Name: "42 Meter (R900)",
-				},
-				Origin: &HomeAssistantOrigin{
-					Name:     "rtlamr_mqtt",
-					Software: "v0.01",
-					URL:      "https://github.com/robshakir/rtlamr",
-				},
-				Components: map[string]*HomeAssistantComponent{
-					"meter_0": {
-						Platform:    "sensor",
-						DeviceClass: "water",
-						Unit:        "gal",
-						ValTemplate: "{{ value_json.Consumption }}",
-						UniqueID:    "meter42_water",
-					},
-					"meter42_leak_count": {
-						Platform:    "sensor",
-						DeviceClass: "water",
-						ValTemplate: "{{ value_json.Leak }}",
-						UniqueID:    "meter42_leak_count",
-					},
-					"meter42_leak_status": {
-						Platform:    "binary_sensor",
-						DeviceClass: "water",
-						ValTemplate: "{{ value_json.LeakNow }}",
-						UniqueID:    "meter42_leaknow",
-					},
-				},
-			}
-			js, err := json.MarshalIndent(d, "", "  ")
+			js, err := json.MarshalIndent(r900Payload, "", "  ")
 			if err != nil {
 				t.Fatalf("cannot create test data, %v", err)
 			}
@@ -624,6 +655,10 @@ func TestHADeviceJSON(t *testing.T) {
 			OriginJSONKey: "Consumption",
 			NewJSONKey:    "Consumption",
 		}},
+		wantReconn: &reconnMsg{
+			Topic: "homeassistant/device/42/config",
+			Msg:   r900Payload,
+		},
 	}, {
 		desc: "SCM meter",
 		in: scm.SCM{
@@ -636,36 +671,7 @@ func TestHADeviceJSON(t *testing.T) {
 		},
 		wantTopic: "homeassistant/device/42/config",
 		wantPayload: func() []byte {
-			d := &HomeAssistantDiscovery{
-				StateTopic: "meters/42/state",
-				QOS:        2,
-				Device: &HomeAssistantDevice{
-					ID:   "42",
-					Name: "42 Meter (SCM)",
-				},
-				Origin: &HomeAssistantOrigin{
-					Name:     "rtlamr_mqtt",
-					Software: "v0.01",
-					URL:      "https://github.com/robshakir/rtlamr",
-				},
-				Components: map[string]*HomeAssistantComponent{
-					"meter_0": {
-						Platform:    "sensor",
-						DeviceClass: "gas",
-						Unit:        "ft³",
-						ValTemplate: "{{ value_json.Consumption }}",
-						UniqueID:    "meter42_gas",
-					},
-					"meter_kwh": {
-						Platform:    "sensor",
-						DeviceClass: "gas",
-						Unit:        "kwH",
-						ValTemplate: "{{ value_json.ConsumptionKWH }}",
-						UniqueID:    "meter42_kwh",
-					},
-				},
-			}
-			js, err := json.MarshalIndent(d, "", "  ")
+			js, err := json.MarshalIndent(scmPayload, "", "  ")
 			if err != nil {
 				t.Fatalf("cannot create test data, %v", err)
 			}
@@ -673,13 +679,20 @@ func TestHADeviceJSON(t *testing.T) {
 		}(),
 		wantSpec: []*spec{{
 			OriginJSONKey: "Consumption",
+			NewJSONKey:    "Consumption",
+		}, {
+			OriginJSONKey: "Consumption",
 			NewJSONKey:    "ConsumptionKWH",
 		}},
+		wantReconn: &reconnMsg{
+			Topic: "homeassistant/device/42/config",
+			Msg:   scmPayload,
+		},
 	}}
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			gotTopic, gotPayload, gotSpec, gotErr := haDeviceJSON(tt.in)
+			gotTopic, gotPayload, gotSpec, gotReconn, gotErr := haDeviceJSON(tt.in)
 			if (gotErr != nil) != tt.wantErr {
 				t.Fatalf("did not get expected error, got: %v, wantErr? %v", gotErr, tt.wantErr)
 			}
@@ -695,6 +708,10 @@ func TestHADeviceJSON(t *testing.T) {
 				return i.NewJSONKey < j.NewJSONKey
 			}), cmpopts.IgnoreFields(spec{}, "TransformFn")); diff != "" {
 				t.Errorf("did not get expected transformer spec, diff(-got,+want):\n%s", diff)
+			}
+
+			if diff := cmp.Diff(gotReconn, tt.wantReconn, cmpopts.SortSlices(func(i, j *reconnMsg) bool { return i.Topic < j.Topic })); diff != "" {
+				t.Errorf("did not get expected reconn spec, diff(-got,+want):\n%s", diff)
 			}
 
 		})

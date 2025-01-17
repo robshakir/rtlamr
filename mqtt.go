@@ -29,6 +29,13 @@ type MQTT struct {
 	// This is used to know whether we should create a meter via discovery in
 	// HomeAssistant as the first message is received.
 	knownMeters map[uint32][]*spec
+
+	reconnectionMsgs []*reconnMsg
+}
+
+type reconnMsg struct {
+	Topic string
+	Msg   *HomeAssistantDiscovery
 }
 
 // NewMQTT returns a new HomeAssistant MQTT client, connected to an external
@@ -47,9 +54,37 @@ func NewMQTT(addr string) (*MQTT, error) {
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
 		return nil, token.Error()
 	}
-	log.Println("created MQTT encoder")
 
-	return &MQTT{c: c, knownMeters: map[uint32][]*spec{}}, nil
+	m := &MQTT{c: c, knownMeters: map[uint32][]*spec{}}
+	log.Println("created MQTT encoder")
+	opts.SetOnConnectHandler(m.sendReconnectMessages)
+
+	go m.sendPeriodicRegisters()
+
+	return m, nil
+}
+
+func (m *MQTT) sendReconnectMessages(c mqtt.Client) {
+	for _, r := range m.reconnectionMsgs {
+		js, err := json.Marshal(r.Msg)
+		if err != nil {
+			log.Printf("cannot marshal reconnect msg %+v, err: %v", r, err)
+			continue
+		}
+		m.q(r.Topic, js)
+	}
+}
+
+func (m *MQTT) sendPeriodicRegisters() {
+	ticker := time.NewTicker(5 * time.Minute)
+
+	for {
+		select {
+		case t := <-ticker.C:
+			log.Printf("sending periodic messages at %s", t)
+			m.sendReconnectMessages(m.c)
+		}
+	}
 }
 
 // Q enqueues a protocol message received from RTLAMR to the relevant MQTT topic.
@@ -67,7 +102,7 @@ func (m *MQTT) Q(i protocol.Message) error {
 	if _, ok := m.knownMeters[i.MeterID()]; !ok {
 		// This is a new meter that we didn't know about before, so we need to send
 		// a HomeAssistant discovery topic message.
-		dT, d, tspec, err := haDeviceJSON(i)
+		dT, d, tspec, rMsg, err := haDeviceJSON(i)
 		if err != nil {
 			return err
 		}
@@ -75,6 +110,7 @@ func (m *MQTT) Q(i protocol.Message) error {
 		// before we send our readings.
 		m.q(dT, d)
 		m.knownMeters[i.MeterID()] = tspec
+		m.reconnectionMsgs = append(m.reconnectionMsgs, rMsg)
 	}
 
 	pJS := map[string]any{}
@@ -129,7 +165,7 @@ type spec struct {
 // haDeviceJSON produces JSON required to create a new device in HomeAssistant. It returns
 // a string that is the topic that should be written to, a byte slice of the JSON that is
 // to be used, and a map of JSON key name to a function to transform that value.
-func haDeviceJSON(i protocol.Message) (string, []byte, []*spec, error) {
+func haDeviceJSON(i protocol.Message) (string, []byte, []*spec, *reconnMsg, error) {
 	extraCmps := map[string]*HomeAssistantComponent{}
 	specs := []*spec{}
 	var devClass, devUnit string
@@ -139,15 +175,15 @@ func haDeviceJSON(i protocol.Message) (string, []byte, []*spec, error) {
 		devUnit = "gal"
 
 		extraCmps[fmt.Sprintf("meter%d_leak_status", i.MeterID())] = &HomeAssistantComponent{
-			Platform:    "binary_sensor",
-			DeviceClass: "water",
+			Platform: "binary_sensor",
+			//DeviceClass: "water",
 			ValTemplate: "{{ value_json.LeakNow }}",
 			UniqueID:    fmt.Sprintf("meter%d_leaknow", i.MeterID()),
 		}
 
 		extraCmps[fmt.Sprintf("meter%d_leak_count", i.MeterID())] = &HomeAssistantComponent{
-			Platform:    "sensor",
-			DeviceClass: "water",
+			Platform: "sensor",
+			//DeviceClass: "water",
 			ValTemplate: "{{ value_json.Leak }}",
 			UniqueID:    fmt.Sprintf("meter%d_leak_count", i.MeterID()),
 		}
@@ -167,18 +203,25 @@ func haDeviceJSON(i protocol.Message) (string, []byte, []*spec, error) {
 		kwhID := fmt.Sprintf("meter%d_kwh", i.MeterID())
 		extraCmps["meter_kwh"] = &HomeAssistantComponent{
 			Platform:    "sensor",
-			DeviceClass: "gas",
-			Unit:        "kwH",
+			DeviceClass: "energy",
+			Unit:        "kWh",
 			ValTemplate: "{{ value_json.ConsumptionKWH }}",
 			UniqueID:    kwhID,
 		}
 
 		specs = append(specs, &spec{
 			OriginJSONKey: "Consumption",
+			NewJSONKey:    "Consumption",
+			TransformFn: func(i float64) float64 {
+				return float64(i)
+			},
+		})
+
+		specs = append(specs, &spec{
+			OriginJSONKey: "Consumption",
 			NewJSONKey:    "ConsumptionKWH",
 			TransformFn: func(i float64) float64 {
-				fmt.Printf("transformer was called\n")
-				return float64(i) * 0.913422 * 1.062033 * 29.3001
+				return (float64(i)) * 0.2842356721
 			},
 		})
 	}
@@ -211,12 +254,18 @@ func haDeviceJSON(i protocol.Message) (string, []byte, []*spec, error) {
 		Components: cmps,
 	}
 
-	js, err := json.MarshalIndent(d, "", "  ")
-	if err != nil {
-		return "", nil, nil, fmt.Errorf("cannot marshal discovery JSON, %v", err)
+	t := fmt.Sprintf("homeassistant/device/%d/config", i.MeterID())
+	rm := &reconnMsg{
+		Topic: t,
+		Msg:   d,
 	}
 
-	return fmt.Sprintf("homeassistant/device/%d/config", i.MeterID()), js, specs, nil
+	js, err := json.MarshalIndent(d, "", "  ")
+	if err != nil {
+		return "", nil, nil, nil, fmt.Errorf("cannot marshal discovery JSON, %v", err)
+	}
+
+	return t, js, specs, rm, nil
 }
 
 // HomeAssistantDiscovery describes the root message of a message that is sent
