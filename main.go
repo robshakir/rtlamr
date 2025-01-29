@@ -197,7 +197,7 @@ func (rcvr *Receiver) Run() {
 	if *useMQTT {
 		var err error
 		// TODO(robjs): Make this be an argument.
-		mqttC, err = NewMQTT("tcp://192.168.20.2:1883")
+		mqttC, err = NewMQTT(*mqttAddr)
 		if err != nil {
 			log.Fatalf("cannot create MQTT encoder, %v", err)
 		}

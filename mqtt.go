@@ -17,9 +17,6 @@ const (
 	mqttClientID = "rtlamr-robjs"
 	// user is the username to be used to connect to mqtt. It is usually "homeassistant".
 	user = "homeassistant"
-	// pwd is the plaintext password used to connect to the mqtt broker. It can be found
-	// in plaintext in the yaml homeassistant config.
-	pwd = "SECRET"
 )
 
 // MQTT is a wrapper for a client connecting to HomeAssistant's MQTT broker.
@@ -47,7 +44,7 @@ func NewMQTT(addr string) (*MQTT, error) {
 	opts.SetKeepAlive(2 * time.Second)
 	opts.SetPingTimeout(1 * time.Second)
 	opts.SetUsername(user)
-	opts.SetPassword(pwd)
+	opts.SetPassword(*mqttPassword)
 	opts.SetAutoReconnect(true)
 
 	c := mqtt.NewClient(opts)

@@ -53,6 +53,8 @@ var single = flag.Bool("single", false, "one shot execution, if used with -filte
 var version = flag.Bool("version", false, "display build date and commit hash")
 
 var useMQTT = flag.Bool("use_mqtt", false, "whether to use MQTT connections")
+var mqttAddr = flag.String("mqtt_addr", "", "address for the MQTT connection to be made to.")
+var mqttPassword = flag.String("mqtt_pass", "", "password for the MQTT host.")
 
 func RegisterFlags() {
 	msgType = StringMap{"scm": true}
