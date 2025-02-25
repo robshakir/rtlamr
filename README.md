@@ -1,5 +1,11 @@
 [![AGPLv3 License](https://img.shields.io/badge/license-AGPLv3-blue.svg?style=flat)](http://choosealicense.com/licenses/agpl-3.0/)
 
+### Notes (robshakir)
+
+This is a fork of the rtlamr tool (https://github.com/bemaser/rtlamr) that adds support for connecting to a MQTT broker and publishing HomeAssistant discovery messages, along with received data. I developed it for a friend, and whilst the configuration is read from command line tags, it isn't tested or checked against anything other than his setup.
+
+It is packaged as a container image for those that require it  -- along with rtl-tcp.
+
 ### Purpose
 
 Utilities often use "smart meters" to optimize their residential meter reading infrastructure. Smart meters transmit consumption information in the various ISM bands allowing utilities to simply send readers driving through neighborhoods to collect commodity consumption information. One protocol in particular: Encoder Receiver Transmitter by Itron is fairly straight forward to decode and operates in the 900MHz ISM band, well within the tunable range of inexpensive rtl-sdr dongles.

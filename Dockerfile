@@ -1,3 +1,4 @@
+LABEL org.opencontainers.image.source = "https://github.com/robshakir/rtlamr"
 FROM docker.io/dtcooper/raspberrypi-os:bookworm 
 
 RUN apt-get update && \
